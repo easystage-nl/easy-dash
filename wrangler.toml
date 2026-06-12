@@ -1,0 +1,16 @@
+name = "easy-dash"
+compatibility_date = "2026-04-01"
+
+# Custom domain. The "easystage.nl" zone must already be in this Cloudflare
+# account; `custom_domain = true` provisions the route + SSL on deploy.
+# The JSON API is a separate worker (easy-scraper repo) on api.easystage.nl.
+routes = [
+  { pattern = "easystage.nl", custom_domain = true },
+]
+
+# Static-assets-only worker (no server code): serves the built Vite SPA from
+# ./dist. `not_found_handling = "single-page-application"` returns index.html
+# for unknown paths so client-side routing works.
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"
