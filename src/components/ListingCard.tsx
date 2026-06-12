@@ -52,7 +52,7 @@ export function ListingCard({ l, now }: { l: Listing; now: number }) {
         {isRemoved ? (
           <span>removed {relativeTime(l.removed_at, now)}</span>
         ) : (
-          <span>seen {relativeTime(l.last_seen_at, now)}</span>
+          <span>updated {relativeTime(l.last_seen_at, now)}</span>
         )}
       </div>
     </Card>

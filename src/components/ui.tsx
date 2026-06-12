@@ -42,9 +42,9 @@ export function Badge({
   className?: string;
 }) {
   const variants: Record<string, string> = {
-    default: "border-[var(--border)] text-[var(--fg)] bg-[var(--accent)]",
+    default: "border-[var(--border-strong)] text-[var(--fg)] bg-[var(--accent)]",
     muted: "border-[var(--border)] text-[var(--muted)] bg-transparent",
-    new: "border-transparent text-white bg-emerald-600 dark:bg-emerald-500",
+    new: "border-emerald-500/25 text-emerald-400 bg-emerald-500/10",
   };
   return (
     <span
@@ -74,7 +74,7 @@ export function Card({
 }) {
   const cls = cn(
     "block rounded-xl border bg-[var(--card)] border-[var(--border)] p-4 text-left",
-    "transition-all hover:border-[var(--ring)]/40 hover:shadow-sm",
+    "transition-colors duration-150 hover:border-[var(--border-strong)] hover:bg-[var(--accent)]",
     onClick || href ? "cursor-pointer" : "",
     className,
   );

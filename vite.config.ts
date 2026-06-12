@@ -3,9 +3,12 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 // Standalone dashboard for easy-stage. The API (listings/runs) is served by the
-// easy-scraper Cloudflare Worker. In dev we proxy to a local `wrangler dev`
-// (port 8787) so the app can use same-origin relative paths. In prod, set
-// VITE_API_BASE to the deployed worker origin (see src/lib/api.ts).
+// easy-scraper Cloudflare Worker. The dev server proxies API paths to it; the
+// proxy runs server-side (Node), so it bypasses browser CORS and can target the
+// live API directly. Defaults to prod — set DEV_API to http://localhost:8787 to
+// develop against a local `wrangler dev` instead.
+const DEV_API = process.env.DEV_API ?? "https://api.easystage.nl";
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: {
@@ -16,9 +19,9 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/listings": "http://localhost:8787",
-      "/runs": "http://localhost:8787",
-      "/run": "http://localhost:8787",
+      // Proxy all API paths to the worker. Regex (key starts with ^) so new
+      // endpoints don't need adding one by one.
+      "^/(listings|runs|run|stats|facets)\\b": { target: DEV_API, changeOrigin: true },
     },
   },
 });

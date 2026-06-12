@@ -56,8 +56,8 @@ export function MapView({ listings }: { listings: Listing[] }) {
         style={{ height: "calc(100vh - 240px)", minHeight: "480px", width: "100%" }}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         />
         <FitBounds points={points} />
         {points.map((p) => (
@@ -68,16 +68,16 @@ export function MapView({ listings }: { listings: Listing[] }) {
                   href={listingUrl(p.leerplaats_id, p.titel)}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="font-medium text-blue-600 underline-offset-2 hover:underline"
+                  className="font-medium text-[var(--fg)] underline-offset-2 hover:underline"
                 >
                   {p.wervende_titel?.trim() || p.titel || "(no title)"}
                 </a>
-                <div className="mt-1 text-xs text-neutral-600">
+                <div className="mt-1 text-xs text-[var(--muted)]">
                   {p.org_naam ?? "Unknown org"}
                   {p.plaats ? ` · ${p.plaats}` : ""}
                 </div>
                 {(p.leerweg || p.dagen_per_week) && (
-                  <div className="mt-1 text-xs text-neutral-500">
+                  <div className="mt-1 text-xs text-[var(--muted)]">
                     {p.leerweg ?? ""}
                     {p.leerweg && p.dagen_per_week ? " · " : ""}
                     {p.dagen_per_week ? `${p.dagen_per_week} dagen/wk` : ""}

@@ -37,14 +37,17 @@ export function Filters({
           value={state.search}
           onChange={(e) => update({ search: e.target.value })}
         />
-        <Select value={state.plaats} onChange={(e) => update({ plaats: e.target.value })}>
-          <option value="">All cities</option>
+        <Input
+          list="plaats-options"
+          placeholder="All cities"
+          value={state.plaats}
+          onChange={(e) => update({ plaats: e.target.value })}
+        />
+        <datalist id="plaats-options">
           {plaatsen.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
+            <option key={p} value={p} />
           ))}
-        </Select>
+        </datalist>
         <Select value={state.leerweg} onChange={(e) => update({ leerweg: e.target.value })}>
           <option value="">All leerwegen</option>
           {leerwegen.map((l) => (
@@ -66,7 +69,7 @@ export function Filters({
           onChange={(e) => update({ sort: e.target.value as SortKey })}
         >
           <option value="newest">Newest first</option>
-          <option value="recent">Recently active</option>
+          <option value="recent">Recently updated</option>
           <option value="title">Title (A–Z)</option>
         </Select>
       </div>

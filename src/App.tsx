@@ -3,12 +3,24 @@ import { Header } from "./components/Header";
 import { Filters, type FilterState } from "./components/Filters";
 import { ListingCard } from "./components/ListingCard";
 import { ViewToggle, type ViewMode } from "./components/ViewToggle";
-import { fetchListings, fetchRuns, type Listing, type ScrapeRun } from "./lib/api";
+import {
+  fetchFacets,
+  fetchListings,
+  fetchRuns,
+  fetchStats,
+  type Facets,
+  type Listing,
+  type ListingQuery,
+  type ScrapeRun,
+  type Stats,
+} from "./lib/api";
 
 // Leaflet ships ~150kB of JS + CSS. Only load it when the map tab is opened.
 const MapView = lazy(() =>
   import("./components/MapView").then((m) => ({ default: m.MapView })),
 );
+
+const PAGE_SIZE = 100;
 
 const DEFAULT_FILTERS: FilterState = {
   search: "",
@@ -18,101 +30,123 @@ const DEFAULT_FILTERS: FilterState = {
   sort: "newest",
 };
 
+function errMsg(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
 export function App() {
-  const [listings, setListings] = useState<Listing[]>([]);
+  const [items, setItems] = useState<Listing[]>([]);
+  const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [facets, setFacets] = useState<Facets>({ plaatsen: [], leerwegen: [] });
   const [runs, setRuns] = useState<ScrapeRun[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [view, setView] = useState<ViewMode>("list");
+
+  const [loading, setLoading] = useState(true); // first page of current query
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
-  const [view, setView] = useState<ViewMode>("list");
   const [now, setNow] = useState(Date.now());
+  const [reloadKey, setReloadKey] = useState(0);
 
-  async function load(isInitial: boolean) {
-    if (isInitial) setLoading(true);
-    else setRefreshing(true);
-    setError(null);
-    try {
-      const [l, r] = await Promise.all([fetchListings(), fetchRuns()]);
-      setListings(l);
-      setRuns(r);
-      setNow(Date.now());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+  // Debounce the search box so we don't fire a request per keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(filters.search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [filters.search]);
+
+  const query = useMemo<ListingQuery>(
+    () => ({
+      q: debouncedSearch || undefined,
+      plaats: filters.plaats || undefined,
+      leerweg: filters.leerweg || undefined,
+      status: filters.status,
+      sort: filters.sort,
+    }),
+    [debouncedSearch, filters.plaats, filters.leerweg, filters.status, filters.sort],
+  );
+
+  // Header counts + filter options + latest run. Independent of the query so
+  // "active" reflects the whole table, not the current page.
+  async function loadMeta() {
+    const [s, f, r] = await Promise.all([fetchStats(), fetchFacets(), fetchRuns()]);
+    setStats(s);
+    setFacets(f);
+    setRuns(r);
   }
 
   useEffect(() => {
-    void load(true);
+    void loadMeta().catch((e) => setError(errMsg(e)));
     const tick = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(tick);
   }, []);
 
-  const plaatsen = useMemo(
-    () =>
-      [...new Set(listings.map((l) => l.plaats).filter((p): p is string => !!p))].sort(
-        (a, b) => a.localeCompare(b),
-      ),
-    [listings],
-  );
-  const leerwegen = useMemo(
-    () =>
-      [...new Set(listings.map((l) => l.leerweg).filter((l): l is string => !!l))].sort(
-        (a, b) => a.localeCompare(b),
-      ),
-    [listings],
-  );
+  // Fetch the first page whenever the query (or a manual refresh) changes.
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    fetchListings({ ...query, limit: PAGE_SIZE, offset: 0 })
+      .then((page) => {
+        if (cancelled) return;
+        setItems(page.items);
+        setTotal(page.total);
+        setNow(Date.now());
+      })
+      .catch((e) => !cancelled && setError(errMsg(e)))
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [query, reloadKey]);
 
-  const totalActive = useMemo(() => listings.filter((l) => !l.removed_at).length, [listings]);
+  async function loadMore() {
+    setLoadingMore(true);
+    try {
+      const page = await fetchListings({ ...query, limit: PAGE_SIZE, offset: items.length });
+      setItems((prev) => [...prev, ...page.items]);
+      setTotal(page.total);
+    } catch (e) {
+      setError(errMsg(e));
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
-  const filtered = useMemo(() => {
-    const q = filters.search.trim().toLowerCase();
-    let out = listings.filter((l) => {
-      if (filters.status === "active" && l.removed_at) return false;
-      if (filters.status === "removed" && !l.removed_at) return false;
-      if (filters.plaats && l.plaats !== filters.plaats) return false;
-      if (filters.leerweg && l.leerweg !== filters.leerweg) return false;
-      if (q) {
-        const hay =
-          (l.titel ?? "") + " " + (l.wervende_titel ?? "") + " " + (l.org_naam ?? "");
-        if (!hay.toLowerCase().includes(q)) return false;
-      }
-      return true;
-    });
-    out = [...out].sort((a, b) => {
-      switch (filters.sort) {
-        case "newest":
-          return b.first_seen_at - a.first_seen_at;
-        case "recent":
-          return b.last_seen_at - a.last_seen_at;
-        case "title":
-          return (a.wervende_titel || a.titel).localeCompare(b.wervende_titel || b.titel);
-      }
-    });
-    return out;
-  }, [listings, filters]);
+  async function refresh() {
+    setRefreshing(true);
+    try {
+      await loadMeta();
+      setReloadKey((k) => k + 1);
+    } catch (e) {
+      setError(errMsg(e));
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   const latestRun = runs.find((r) => r.finished_at) ?? runs[0] ?? null;
+  const hasMore = items.length < total;
 
   return (
     <div className="min-h-screen">
       <Header
-        totalActive={totalActive}
-        totalAll={listings.length}
+        totalActive={stats?.active ?? 0}
+        totalAll={stats?.total ?? 0}
         latestRun={latestRun}
-        onRefresh={() => void load(false)}
+        onRefresh={() => void refresh()}
         refreshing={refreshing}
       />
 
       <Filters
         state={filters}
         onChange={setFilters}
-        plaatsen={plaatsen}
-        leerwegen={leerwegen}
-        resultCount={filtered.length}
+        plaatsen={facets.plaatsen}
+        leerwegen={facets.leerwegen}
+        resultCount={total}
         rightSlot={<ViewToggle value={view} onChange={setView} />}
       />
 
@@ -121,27 +155,81 @@ export function App() {
           <SkeletonGrid />
         ) : error ? (
           <EmptyState title="Couldn't load listings" body={error} />
-        ) : filtered.length === 0 ? (
+        ) : total === 0 ? (
           <EmptyState
             title="No listings match"
             body="Try clearing some filters or widening your search."
           />
         ) : view === "map" ? (
-          <Suspense
-            fallback={
-              <div className="h-[480px] animate-pulse rounded-xl border border-[var(--border)] bg-[var(--accent)]/50" />
-            }
-          >
-            <MapView listings={filtered} />
-          </Suspense>
+          <>
+            <Suspense
+              fallback={
+                <div className="h-[480px] animate-pulse rounded-xl border border-[var(--border)] bg-[var(--accent)]/50" />
+              }
+            >
+              <MapView listings={items} />
+            </Suspense>
+            <LoadMore
+              shown={items.length}
+              total={total}
+              hasMore={hasMore}
+              loading={loadingMore}
+              onClick={() => void loadMore()}
+              noun="on map"
+            />
+          </>
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((l) => (
-              <ListingCard key={l.leerplaats_id} l={l} now={now} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {items.map((l) => (
+                <ListingCard key={l.leerplaats_id} l={l} now={now} />
+              ))}
+            </div>
+            <LoadMore
+              shown={items.length}
+              total={total}
+              hasMore={hasMore}
+              loading={loadingMore}
+              onClick={() => void loadMore()}
+            />
+          </>
         )}
       </main>
+    </div>
+  );
+}
+
+function LoadMore({
+  shown,
+  total,
+  hasMore,
+  loading,
+  onClick,
+  noun = "",
+}: {
+  shown: number;
+  total: number;
+  hasMore: boolean;
+  loading: boolean;
+  onClick: () => void;
+  noun?: string;
+}) {
+  return (
+    <div className="mt-6 flex flex-col items-center gap-3">
+      <p className="text-xs text-[var(--muted)]">
+        Showing <span className="font-mono text-[var(--fg)]">{shown.toLocaleString()}</span> of{" "}
+        <span className="font-mono">{total.toLocaleString()}</span>
+        {noun ? ` ${noun}` : ""}
+      </p>
+      {hasMore && (
+        <button
+          onClick={onClick}
+          disabled={loading}
+          className="rounded-md border border-[var(--border)] bg-[var(--card)] px-4 py-1.5 text-xs font-medium text-[var(--fg)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--accent)] disabled:opacity-50"
+        >
+          {loading ? "Loading…" : "Load more"}
+        </button>
+      )}
     </div>
   );
 }
