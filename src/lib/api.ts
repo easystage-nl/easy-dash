@@ -14,6 +14,15 @@ export interface Listing {
   first_seen_at: number;
   last_seen_at: number;
   removed_at: number | null;
+  crebocode: string | null;
+  opleiding: string | null;
+  niveaunaam: string | null;
+}
+
+export interface OpleidingFacet {
+  crebocode: string;
+  label: string;
+  count: number;
 }
 
 export interface ScrapeRun {
@@ -34,6 +43,7 @@ export interface ListingQuery {
   q?: string;
   plaats?: string;
   leerweg?: string;
+  crebocode?: string;
   status?: Status;
   sort?: SortKey;
   limit?: number;
@@ -54,6 +64,7 @@ export interface Stats {
 export interface Facets {
   plaatsen: string[];
   leerwegen: string[];
+  opleidingen: OpleidingFacet[];
 }
 
 // Base URL of the easy-scraper Worker API. Empty in dev so requests stay
@@ -66,6 +77,7 @@ export async function fetchListings(query: ListingQuery = {}): Promise<ListingsP
   if (query.q) p.set("q", query.q);
   if (query.plaats) p.set("plaats", query.plaats);
   if (query.leerweg) p.set("leerweg", query.leerweg);
+  if (query.crebocode) p.set("crebocode", query.crebocode);
   if (query.status) p.set("status", query.status);
   if (query.sort) p.set("sort", query.sort);
   p.set("limit", String(query.limit ?? 100));

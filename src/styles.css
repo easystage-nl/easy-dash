@@ -2,24 +2,42 @@
 
 @theme {
   --font-sans:
-    "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono:
-    ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", Menlo, monospace;
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 }
 
 @layer base {
-  /* Permanent all-black theme (Vercel/Geist-style). No light mode. */
+  /* Light, high-contrast, data-dense. One cobalt accent; status colours only
+     where they carry meaning. Everything is meant to read at a glance. */
   :root {
-    --bg: #000000;
-    --fg: #ededed;
-    --muted: #8a8a8a;
-    --border: #1f1f1f;
-    --border-strong: #2e2e2e;
-    --card: #000000;
-    --accent: #141414;
-    --ring: #ffffff;
-    color-scheme: dark;
+    --bg: #f4f4f3;
+    --fg: #14141a;
+    --muted: #61616b;
+    --faint: #9494a0;
+
+    --border: #e6e6e3;
+    --border-strong: #d4d4cf;
+
+    /* Surfaces sit pure-white on a faintly warm grey page so cards pop without
+       needing heavy shadows. */
+    --card: #ffffff;
+    --card-hover: #ffffff;
+    --accent: #f1f1ee; /* neutral fill: badges, icon tiles, segmented track */
+
+    /* Monochrome ink accent — wordmark, active states, focus. No colour. */
+    --brand: #14141a;
+    --brand-fg: #ffffff;
+    --brand-tint: rgba(20, 20, 26, 0.10);
+    --ring: #14141a;
+
+    /* Shadows — soft, layered, low-opacity so the page stays calm. */
+    --shadow-sm: 0 1px 2px rgba(20, 20, 26, 0.04), 0 1px 1px rgba(20, 20, 26, 0.03);
+    --shadow-md:
+      0 1px 2px rgba(20, 20, 26, 0.04), 0 8px 22px -12px rgba(20, 20, 26, 0.18);
+
+    color-scheme: light;
   }
 
   html,
@@ -32,44 +50,51 @@
   }
 
   ::selection {
-    background: rgba(255, 255, 255, 0.18);
+    background: rgba(20, 20, 26, 0.14);
   }
 
-  /* Thin, dark scrollbars to match the surface. */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #2a2a2a transparent;
+    scrollbar-color: #cdcdc8 transparent;
   }
   *::-webkit-scrollbar {
     width: 10px;
     height: 10px;
   }
   *::-webkit-scrollbar-thumb {
-    background: #2a2a2a;
+    background: #cdcdc8;
     border-radius: 9999px;
     border: 3px solid var(--bg);
   }
+  *::-webkit-scrollbar-thumb:hover {
+    background: #b7b7b1;
+  }
 
   *:focus-visible {
-    outline: 1.5px solid var(--ring);
+    outline: 2px solid var(--ring);
     outline-offset: 2px;
-    border-radius: 0.375rem;
+    border-radius: 0.5rem;
   }
 }
 
-/* Dark-theme Leaflet chrome (popups, controls, attribution) to match. */
+/* Light-theme Leaflet chrome to match the surface. */
 .leaflet-container {
-  background: #000000;
+  background: #e9e9e6;
+  font-family: var(--font-sans);
 }
 .leaflet-popup-content-wrapper,
 .leaflet-popup-tip {
   background: var(--card);
   color: var(--fg);
   border: 1px solid var(--border-strong);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--shadow-md);
+  border-radius: 0.75rem;
+}
+.leaflet-popup-content {
+  margin: 0.75rem 0.875rem;
 }
 .leaflet-popup-close-button {
-  color: var(--muted) !important;
+  color: var(--faint) !important;
 }
 .leaflet-bar a,
 .leaflet-bar a:hover {
@@ -78,7 +103,7 @@
   border-color: var(--border);
 }
 .leaflet-control-attribution {
-  background: rgba(0, 0, 0, 0.6) !important;
+  background: rgba(255, 255, 255, 0.75) !important;
   color: var(--muted) !important;
 }
 .leaflet-control-attribution a {
